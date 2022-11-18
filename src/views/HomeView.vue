@@ -9,6 +9,7 @@
                 <v-img cover :src="user.avatar"></v-img>
               </v-avatar>
               <v-card-item :title="user.name" :subtitle="user.gender">
+                {{ dateFormatted }}
               </v-card-item>
             </v-row>
           </v-col>
@@ -31,6 +32,15 @@
 <script setup lang="ts">
 import { mdiPencil } from "@mdi/js";
 import { useUserStore } from "@/store/store";
+import { computed } from "vue";
 
 const user = useUserStore();
+
+const dateFormatted = computed(() => {
+  return `${formatSingleNumber(user.dateOfBirth.getDate())}.${formatSingleNumber(user.dateOfBirth.getMonth()+1)}.${user.dateOfBirth.getFullYear()}`
+});
+
+const formatSingleNumber = function(number: number) {
+  return number.toString().length === 1 ? `0${number}` : number;
+};
 </script>

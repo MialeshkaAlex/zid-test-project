@@ -21,17 +21,6 @@
         </v-btn>
       </template>
     </v-snackbar>
-    <v-dialog
-      v-model="loading"
-      persistent
-    >
-      <v-card>
-        <v-card-text>
-          Your payment in progress
-          <v-progress-linear indeterminate class="mb-0" />
-        </v-card-text>
-      </v-card>
-    </v-dialog>
   </v-container>
 </template>
 
@@ -46,8 +35,10 @@ import type {
 import { loadStripe } from "@stripe/stripe-js";
 import { onMounted, ref } from "vue";
 import { useRoute } from "vue-router";
+import { useUserStore } from "@/store/store";
 
 const router = useRoute();
+const store = useUserStore();
 
 const appearance: Appearance = {
   theme: "stripe",
@@ -56,7 +47,6 @@ const items = [{ id: "test" }];
 const errorMessage = ref("");
 const showError = ref(false);
 const paymentElementsReady = ref(false);
-const loading = ref(false);
 
 const stripe = ref<Stripe | null>(null);
 const clientSecret = ref<StripeElementsOptions | null>(null);
@@ -65,16 +55,17 @@ const paymentElements = ref<StripePaymentElement | undefined>(undefined);
 const proceedPayment = ref(router.query.payment);
 
 onMounted(async () => {
+  store.loading = true;
+
   try {
-    stripe.value = await loadStripe(
-      "pk_test_51M4kcfJsZpofWx254EfiHavR9XcFjiwNO6QUmgVuLQusG1DofOdrNLW9ZhHmVniBMA9fg5ygsQx2czSwWUqawN6p00R88FRDL8"
-    );
+    stripe.value = await loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY);
   } catch (err) {
     console.error("Fail to load stripe", err);
   }
+
   try {
     const response = await fetch(
-      "http://localhost:4242/create-payment-intent",
+      `${import.meta.env.VITE_BACKEND_URL}/create-payment-intent`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -85,24 +76,30 @@ onMounted(async () => {
   } catch (err) {
     console.error("Fail to fetch payment intent", err);
   }
+
   elements.value = stripe.value?.elements({
     appearance,
     clientSecret: clientSecret.value?.clientSecret,
   });
+
   paymentElements.value = elements.value?.create("payment");
   paymentElements.value?.mount("#stripe-elements");
-  paymentElements.value?.on("ready", () => (paymentElementsReady.value = true));
+  paymentElements.value?.on("ready", () => {
+    store.loading = false;
+    paymentElementsReady.value = true;
+  });
 });
 
 const handlePayment = async function (event: Event) {
   event.preventDefault();
-  loading.value = true;
+  store.loading = true;
+  store.loadingType = "Payment";
   if (!elements.value || !stripe.value) {
-    loading.value = false;
+    store.loading = false;
+    store.loadingType = "Default";
     return "Something went wrong.";
   }
 
-  console.log(router);
   const { error } = await stripe.value.confirmPayment({
     elements: elements.value,
     confirmParams: {
@@ -112,11 +109,13 @@ const handlePayment = async function (event: Event) {
 
   if (error.type === "card_error" || error.type === "validation_error") {
     errorMessage.value = error.message || "An unexpected error occurred.";
-    loading.value = false;
+    store.loading = false;
+    store.loadingType = "Default";
     showError.value = true;
   } else {
     errorMessage.value = "An unexpected error occurred.";
-    loading.value = false;
+    store.loading = false;
+    store.loadingType = "Default";
     showError.value = true;
   }
 };

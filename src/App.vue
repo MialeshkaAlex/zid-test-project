@@ -9,14 +9,28 @@
 
     <v-main>
       <RouterView />
+      <v-dialog
+        v-model="store.loading"
+        persistent
+      >
+        <v-card>
+          <v-card-text>
+            {{ store.loadingType === 'Payment' ? 'Your payment in progress' : 'Please stand by' }}
+            <v-progress-linear indeterminate class="mb-0" />
+          </v-card-text>
+        </v-card>
+      </v-dialog>
     </v-main>
   </v-app>
 </template>
 
 <script setup lang="ts">
-import { RouterLink, RouterView } from 'vue-router'
+import { RouterLink, RouterView, useRoute } from "vue-router";
 import { mdiHome, mdiCreditCardOutline } from "@mdi/js";
+import { useUserStore } from "@/store/store";
 
+const route = useRoute();
+const store = useUserStore();
 </script>
 
 <style scoped>
